@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CAMINO AL LENGUAJE</title>
+</head>
+<body>
+  
+</body>
+</html><!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Camino al Lenguaje — Prototipo v2.0</title>
+  <style>
+    :root{
+      --bg:#F2F5FF;
+      --card:#FFFFFF;
+      --muted:#616161;
+      --pastel2-2:#9FD8B8; /* 3 años */
+      --pastel1-2:#FFB9B9; /* 2 años */
+      --pastel3-2:#FFD796; /* 5 años */
+      --tile-size:72px; --gap:14px; --max-width:1100px;
+    }
+    body{
+      font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
+      background:linear-gradient(180deg,var(--bg),#ffffff);
+      color:#222; margin:0; padding:22px; display:flex; justify-content:center;
+    }
+    .app{width:100%; max-width:var(--max-width);}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    h1{font-size:20px;margin:0}
+    .controls{display:flex;gap:10px;align-items:center}
+    button{background:var(--card);border:1px solid rgba(10,10,20,0.06);padding:8px 10px;border-radius:10px;cursor:pointer}
+    .board{background:transparent;padding:12px;border-radius:14px;display:block}
+    .row{display:flex;gap:var(--gap);margin-bottom:12px;align-items:center}
+    /* Zigzag effect: offset alternate rows */
+    .row.offset{margin-left:46px}
+    .tile{width:var(--tile-size);height:var(--tile-size);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#222;background:#fff;border:1px solid rgba(0,0,0,0.06);box-shadow:0 6px 18px rgba(10,20,40,0.06);cursor:pointer;user-select:none}
+    .tile.locked{opacity:0.35;cursor:not-allowed}
+    .tile.current{transform:translateY(-6px);box-shadow:0 10px 24px rgba(10,20,40,0.09)}
+    .tile:hover{transform:translateY(-4px)}
+    .panel{margin-top:18px;background:var(--card);padding:16px;border-radius:12px;box-shadow:0 6px 18px rgba(10,20,40,0.06)}
+    .progress{height:12px;background:#eee;border-radius:8px;overflow:hidden;margin-bottom:12px}
+    .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--pastel2-2),var(--pastel3-2));width:0%}
+    .question-box{display:flex;gap:18px;align-items:flex-start;flex-direction:column}
+    .q-text{flex:1}
+    .meta{font-size:13px;color:var(--muted);margin-bottom:6px}
+    .options{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+    .opt{padding:10px;border-radius:10px;border:1px solid #e9e9f2;background:#fbfbff;cursor:pointer}
+    .opt:hover{box-shadow:0 8px 20px rgba(10,20,40,0.04)}
+    .opt.correct{outline:3px solid rgba(110,200,140,0.28);background:#f3fff4}
+    .opt.wrong{outline:3px solid rgba(255,150,150,0.18);background:#fff6f6}
+    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:8px;flex-wrap:wrap}
+    .muted{color:var(--muted);font-size:13px}
+    .completed{display:none;padding:24px;border-radius:12px;background:linear-gradient(180deg,#fff,#f4fff2);text-align:center}
+    .completed.show{display:block}
+    .legend{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted)}
+    /* Colors for solved tiles by age for clarity (darker pastels) */
+    .bg-2{background:linear-gradient(180deg,var(--pastel1-2),#ffdede)}
+    .bg-3{background:linear-gradient(180deg,var(--pastel2-2),#d9f0de)}
+    .bg-5{background:linear-gradient(180deg,var(--pastel3-2),#ffe9c3)}
+    @media (max-width:900px){ .row.offset{margin-left:30px} }
+    @media (max-width:540px){ :root{--tile-size:56px} .row.offset{margin-left:12px} }
+  </style>
+</head>
+<body>
+  <div class="app" role="application">
+    <header>
+      <h1>Camino al Lenguaje — Prototipo v2.0</h1>
+      <div class="controls">
+        <div class="legend">Progreso: <strong id="progressText">0/29</strong></div>
+        <button id="musicToggle">Música: ON</button>
+        <button id="resetBtn">Reiniciar</button>
+      </div>
+    </header>
+
+    <div class="board" id="board" aria-hidden="false"></div>
+
+    <div class="panel" id="panel">
+      <div class="progress" aria-hidden="false"><i id="progressFill" style="width:0%"></i></div>
+
+      <div class="question-box">
+        <div class="q-text">
+          <div class="meta" id="qMeta">Categoría • Etapa</div>
+          <div id="qTitle" style="font-size:18px;font-weight:600">Selecciona el casillero para comenzar</div>
+          <div class="options" id="options"></div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="muted" id="attemptsInfo">Intentos: ilimitados</div>
+        <div style="display:flex;gap:8px;">
+          <button id="prevBtn" disabled>Anterior</button>
+          <button id="nextBtn" disabled>Siguiente</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="completed" id="completedCard">
+      <h2>¡Completaste el Camino al Lenguaje! 🎉</h2>
+      <p>Gracias — todas las casillas fueron acertadas. Puedes reiniciar para jugar otra vez.</p>
+      <button id="playAgain">Jugar otra vez</button>
+    </div>
+
+  </div>
+
+  <script>
+  // ======== PREGUNTAS (29) ========
+  const QUESTIONS = [
+    {id:1, age:2, category:'Contacto/Atención', q:'¿A qué edad es esperable el contacto visual sostenido con un adulto?', opts:['1 año','2 años','3 años'], ans:1},
+    {id:2, age:2, category:'Atención conjunta', q:'¿A qué edad suele aparecer la atención conjunta (mirar algo y compartir la atención con otra persona)?', opts:['2 años','3 años','5 años'], ans:0},
+    {id:3, age:2, category:'Gestos', q:'¿A qué edad son esperables gestos protoimperativos para pedir objetos (señalar o empujar)?', opts:['1 año','2 años','5 años'], ans:1},
+    {id:4, age:2, category:'Gestos', q:'¿A qué edad aparecen los gestos protodeclarativos para compartir interés (señalar para mostrar)?', opts:['2 años','3 años','5 años'], ans:0},
+    {id:5, age:2, category:'Imitación', q:'¿A los cuántos años es esperable que el niño imite acciones simples de un adulto?', opts:['1 año','2 años','3 años'], ans:1},
+    {id:6, age:2, category:'Juego', q:'¿A qué edad suele aparecer el juego simbólico simple (usar un objeto como otro)?', opts:['2 años','3 años','5 años'], ans:0},
+
+    {id:7, age:3, category:'Atención/Turnos', q:'¿A qué edad se espera que sostenga la atención en un intercambio con un docente?', opts:['2 años','3 años','5 años'], ans:1},
+    {id:8, age:3, category:'Turnos', q:'¿A qué edad se adapta mejor a la toma de turnos en juegos simples?', opts:['2 años','3 años','5 años'], ans:1},
+    {id:9, age:3, category:'Producción', q:'¿A qué edad es esperable que el niño solicite verbalmente a un docente?', opts:['2 años','3 años','5 años'], ans:1},
+    {id:10, age:3, category:'Resolución de problemas', q:'¿A qué edad es frecuente que el niño intente usar la mano del docente como herramienta para alcanzar algo inalcanzable?', opts:['2 años','3 años','5 años'], ans:1},
+    {id:11, age:3, category:'Juego simbólico', q:'¿A qué edad suelen desarrollarse juegos simbólicos más complejos como "jugar a la mamá/papá"?', opts:['2 años','3 años','5 años'], ans:1},
+    {id:12, age:3, category:'Rutinas', q:'¿A qué edad se ajusta progresivamente a las rutinas escolares durante el año?', opts:['2 años','3 años','5 años'], ans:1},
+    {id:13, age:3, category:'Comprensión', q:'¿A qué edad comprende consignas de uno y dos pasos sin ayuda del contexto?', opts:['2 años','3 años','5 años'], ans:1},
+    {id:14, age:3, category:'Producción/Léxico', q:'¿A qué edad suele formular frases de cuatro o más palabras con preposiciones y artículos?', opts:['2 años','3 años','5 años'], ans:1},
+    {id:15, age:3, category:'Morfosintaxis', q:'¿A qué edad se espera el uso de pronombres, concordancia y nexos simples como "y", "que"?', opts:['2 años','3 años','5 años'], ans:1},
+    {id:16, age:3, category:'Pragmática', q:'¿A qué edad el niño realiza preguntas sobre lugar y tiempo?', opts:['2 años','3 años','5 años'], ans:1},
+    {id:17, age:3, category:'Conciencia fonológica', q:'¿A qué edad comienza a identificar rimas y sílabas?', opts:['2 años','3 años','5 años'], ans:1},
+    {id:18, age:3, category:'Fonología', q:'¿A qué edad muestra un inventario fonémico con omisiones esperables en /ɾ/, /r/ y grupos?', opts:['2 años','3 años','5 años'], ans:1},
+
+    {id:19, age:5, category:'Sintaxis', q:'¿A qué edad puede estructurar correctamente una oración simple usando adjetivos, adverbios y preposiciones?', opts:['3 años','4 años','5 años'], ans:2},
+    {id:20, age:5, category:'Sintaxis avanzada', q:'¿A qué edad produce oraciones complejas con más de un sujeto y verbo?', opts:['3 años','5 años','6 años'], ans:1},
+    {id:21, age:5, category:'Oraciones', q:'¿A qué edad accede al uso de oraciones condicionales o pasivas en forma comprensible?', opts:['3 años','5 años','7 años'], ans:1},
+    {id:22, age:5, category:'Narración', q:'¿A qué edad puede contar historias y hacer inferencias sobre un relato?', opts:['3 años','4 años','5 años'], ans:2},
+    {id:23, age:5, category:'Comprensión', q:'¿A qué edad es capaz de comprender y ejecutar dos o tres consignas verbales sucesivas?', opts:['3 años','5 años','6 años'], ans:1},
+    {id:24, age:5, category:'Memoria', q:'¿A qué edad puede repetir series de palabras, números y frases completas?', opts:['3 años','4 años','5 años'], ans:2},
+    {id:25, age:5, category:'Expresión', q:'¿A qué edad expresa opiniones y sentimientos con claridad?', opts:['3 años','5 años','7 años'], ans:1},
+    {id:26, age:5, category:'Descripción', q:'¿A qué edad describe lugares o elementos que conoce o ha oído?', opts:['3 años','4 años','5 años'], ans:2},
+    {id:27, age:5, category:'Conciencia fonológica', q:'¿A qué edad identifica rimas, sílabas y el sonido inicial de las palabras y puede deletrear palabras de 3 fonemas?', opts:['3 años','4 años','5 años'], ans:2},
+    {id:28, age:5, category:'Fonología', q:'¿A qué edad presenta adquisición completa del inventario fonémico del castellano rioplatense?', opts:['3 años','5 años','6 años'], ans:1},
+    {id:29, age:5, category:'Cognición/Audición', q:'¿A qué edad comprende símbolos y diferentes sonidos con capacidad estable?', opts:['3 años','4 años','5 años'], ans:2},
+  ];
+
+  // ======== ESTADO Y STORAGE ========
+  const STORAGE_KEY = 'camino_lenguaje_v2';
+  let state = { current: 1, solved: {}, musicOn:true };
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if(saved){ try{ Object.assign(state, JSON.parse(saved)); }catch(e){ /* ignore */ } }
+
+  // ======== DOM refs ========
+  const board = document.getElementById('board');
+  const qMeta = document.getElementById('qMeta');
+  const qTitle = document.getElementById('qTitle');
+  const optionsBox = document.getElementById('options');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+  const musicToggle = document.getElementById('musicToggle');
+  const resetBtn = document.getElementById('resetBtn');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const completedCard = document.getElementById('completedCard');
+  const playAgain = document.getElementById('playAgain');
+
+  // ======== SONIDOS (URLs externas gratuitas) ========
+  const soundUrls = {
+    correct: 'https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg',
+    wrong:   'https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg',
+    bg:      'https://cdn.pixabay.com/download/audio/2022/03/15/audio_2cbe35e760.mp3?filename=happy-clappy-11254.mp3'
+  };
+
+  const audioCorrect = new Audio(soundUrls.correct);
+  const audioWrong = new Audio(soundUrls.wrong);
+  const audioBg = new Audio(soundUrls.bg);
+  audioBg.loop = true;
+  audioBg.volume = 0.15;
+
+  // start/stop background based on state
+  if(state.musicOn){ audioBg.play().catch(()=>{}); musicToggle.textContent='Música: ON'; } else { musicToggle.textContent='Música: OFF'; }
+
+  // ======== HELPERS ========
+  function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  function getQuestionById(id){ return QUESTIONS.find(q=>q.id===id); }
+  function solvedCount(){ return Object.keys(state.solved).length; }
+
+  // ======== RENDER TABLERO (zigzag) ========
+  function renderBoard(){
+    board.innerHTML = '';
+    // layout rows to total 29: we'll do 8,7,7,7 (zigzag offsets)
+    const layout = [8,7,7,7];
+    let id = 1;
+    for(let r=0;r<layout.length;r++){
+      const row = document.createElement('div');
+      row.className = 'row' + (r % 2 === 1 ? ' offset' : '');
+      for(let c=0;c<layout[r];c++){
+        const t = document.createElement('div');
+        t.className = 'tile';
+        t.setAttribute('data-id', id);
+        t.tabIndex = 0;
+        t.innerText = id;
+        // solved -> color by age
+        if(state.solved[id]){
+          const age = getQuestionById(id).age;
+          if(age === 2) t.classList.add('bg-2');
+          if(age === 3) t.classList.add('bg-3');
+          if(age === 5) t.classList.add('bg-5');
+        }
+        if(id === state.current) t.classList.add('current');
+        // lock tiles after current
+        if(!state.solved[id] && id > state.current) t.classList.add('locked');
+
+        t.addEventListener('click', ()=> {
+          if(t.classList.contains('locked')) return;
+          openQuestion(id);
+        });
+        t.addEventListener('keydown', (e)=>{ if((e.key==='Enter' || e.key===' ') && !t.classList.contains('locked')) openQuestion(id); });
+
+        row.appendChild(t);
+        id++;
+      }
+      board.appendChild(row);
+    }
+    updateProgressUI();
+  }
+
+  // ======== PREGUNTA UI ========
+  let currentQuestion = null;
+  function openQuestion(id){
+    const q = getQuestionById(id); if(!q) return;
+    currentQuestion = q;
+    state.current = id;
+    saveState();
+    renderBoard();
+
+    qMeta.innerText = `${q.category} • ${q.age} años`;
+    qTitle.innerText = `Pregunta ${q.id}: ${q.q}`;
+    optionsBox.innerHTML = '';
+    // fill options
+    q.opts.forEach((optTxt, idx)=>{
+      const b = document.createElement('div');
+      b.className = 'opt';
+      b.tabIndex = 0;
+      b.innerText = optTxt;
+      b.addEventListener('click', ()=> handleAnswer(idx));
+      b.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' ') handleAnswer(idx); });
+      optionsBox.appendChild(b);
+    });
+
+    // prev/next initial states: prev enabled if not first; next disabled until correct
+    prevBtn.disabled = (q.id === 1);
+    nextBtn.disabled = true;
+  }
+
+  function handleAnswer(idx){
+    if(!currentQuestion) return;
+    const opts = Array.from(optionsBox.children);
+
+    // if wrong
+    if(idx !== currentQuestion.ans){
+      // visual
+      opts.forEach(o=> o.classList.remove('correct','wrong'));
+      opts[idx].classList.add('wrong');
+      // play wrong sound
+      audioWrong.currentTime = 0; audioWrong.play().catch(()=>{});
+      return; // no hint (removed)
+    }
+
+    // correct
+    opts.forEach(o=> o.classList.remove('correct','wrong'));
+    opts[idx].classList.add('correct');
+    audioCorrect.currentTime = 0; audioCorrect.play().catch(()=>{});
+
+    // mark solved and unlock next
+    state.solved[currentQuestion.id] = true;
+    saveState();
+
+    // enable "Siguiente" so user can move explicitly
+    nextBtn.disabled = false;
+
+    // also automatically unlock and move cursor to next tile in board rendering
+    if(currentQuestion.id < QUESTIONS.length){
+      state.current = currentQuestion.id; // keep current until user clicks "Siguiente"
+      saveState();
+      renderBoard();
+    } else {
+      // last question solved -> show completed
+      if(solvedCount() === QUESTIONS.length) showCompleted();
+    }
+  }
+
+  function updateProgressUI(){
+    const total = QUESTIONS.length;
+    const done = solvedCount();
+    const pct = Math.round((done/total)*100);
+    progressFill.style.width = pct + '%';
+    progressText.innerText = `${done}/${total}`;
+    if(!currentQuestion){
+      qTitle.innerText = 'Selecciona el casillero para comenzar';
+      qMeta.innerText = 'Categoría • Etapa';
+    }
+  }
+
+  function showCompleted(){
+    document.getElementById('panel').style.display = 'none';
+    completedCard.classList.add('show');
+  }
+
+  // ======== CONTROLES ========
+  musicToggle.addEventListener('click', ()=>{
+    state.musicOn = !state.musicOn;
+    saveState();
+    if(state.musicOn){ audioBg.play().catch(()=>{}); musicToggle.textContent='Música: ON'; } else { audioBg.pause(); musicToggle.textContent='Música: OFF'; }
+  });
+
+  resetBtn.addEventListener('click', ()=>{
+    if(!confirm('Reiniciar todo el progreso?')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    state = {current:1, solved:{}, musicOn: state.musicOn};
+    saveState();
+    location.reload();
+  });
+
+  prevBtn.addEventListener('click', ()=>{
+    if(!currentQuestion) return;
+    const id = Math.max(1, currentQuestion.id - 1);
+    // if tile locked but previously solved we still allow navigation
+    openQuestion(id);
+  });
+
+  nextBtn.addEventListener('click', ()=>{
+    if(!currentQuestion) return;
+    // only advance if next exists
+    const nextId = Math.min(QUESTIONS.length, currentQuestion.id + 1);
+    openQuestion(nextId);
+    // disable next until answered correct in new question
+    nextBtn.disabled = true;
+  });
+
+  playAgain.addEventListener('click', ()=>{
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  });
+
+  // ======== INIT ========
+  renderBoard();
+  // open first unlocked
+  if(!state.solved[state.current]) openQuestion(state.current);
+  document.addEventListener('click', function resume(){
+    // resume audio on user gesture to satisfy browser policies
+    if(audioBg.paused && state.musicOn){ audioBg.play().catch(()=>{}); }
+    document.removeEventListener('click', resume);
+  });
+  </script>
+</body>
+</html>
